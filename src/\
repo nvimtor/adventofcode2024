@@ -1,4 +1,3 @@
-#![feature(try_blocks)]
 use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 
@@ -162,115 +161,46 @@ fn test() {
 }
 
 /*
-TODO create shitty parser for day 3
-Using nom would be too easy
+we need to create a parser...
+a parser, again, can be just
+
+Parser<A> which can be thought of as a function
+
+I -> (O, A)
+
+where A is the result of the parser.
+
+When combining parsers, however, the result is not used.
+We pipe the output of each parser to the next one.
+This way, we can create our own result (for example, a struct) while
+parsing the intact string at the same time.
 */
 
-type Parser<'a, A> = Box<dyn Fn(&'a str) -> (&'a str, anyhow::Result<A>) +'a>;
+type Parser<'a, A> = Box<dyn Fn(&'a str) -> anyhow::Result<(&'a str, A)> +'a>;
 
 fn char<'a>(expected: char) -> Parser<'a, char> {
   Box::new(move |input: &'a str| {
-    let mut out: &str = "";
+    // TODO reread why can't index by integers, something to do
+    // with how strings are encoded in Rust
 
-    let result: Result<char> = try {
-      let head = input.chars().next().ok_or(anyhow!("expected string to not be empty"))?;
+    let head = input.chars().next().ok_or(anyhow!("expected a char"))?;
+    let char_len_utf8 = head.len_utf8();
 
-      if head == expected {
-        anyhow::Ok(head)?
-      } else {
-        Err(anyhow!("{:#?} does not match {:#?}", head, expected))?
-      }
-    };
-
-    if let Ok(head) = result {
-      out = &input[head.len_utf8()..];
+    if head == expected {
+      Ok((&input[len_utf8..], head))
+    } else {
+      Err(anyhow!("{:#?} does not match {:#?}", head, expected))
     }
-
-    (out, result)
   })
-}
-
-/*
-we can make it recursive:
-
-mumul
-
-mu
-
-as soon as it hits m, it wil generate a parser with
-
-("mul", Err)
-
-so now, we just need to call the same parser again, hoping it will get it right this time.
-
-if not, recurse
-*/
-
-fn string<'a>(expected: &'a str) -> Parser<'a, &'a str> {
-  Box::new(move |input: &'a str| {
-    let parsers = expected.chars().map(char);
-
-    let mut last_out: &str = input;
-    let mut result: Result<&'a str> = Ok(expected);
-
-    for parser in parsers {
-      let (out, p_result) = parser(last_out);
-
-      if let Err(err) = p_result {
-        result = Err(err);
-        break
-      };
-
-      last_out = out;
-    }
-
-    (last_out, result)
-  })
-}
-
-fn map<'a, A: 'a, B, F>(fa: Parser<'a, A>, ab: F) -> Parser<'a, B>
-where
-F: Fn(A) -> B + Copy + 'a
-{
-  Box::new(move |input: &'a str| {
-    let (out, result) = fa(input);
-    let res2 = result.map(ab);
-
-    (out, res2)
-  })
-}
-
-fn mul<'a>() -> Parser<'a, &'a str> {
-  fn go<'a>(input: &'a str) {
-
-  }
-
-
-  Box::new(move |input: &'a str| {
-    let q = go(input);
-
-    let (out, res) = string("mul")(input);
-
-    // let x = q("a");
-
-    todo!()
-  });
-
-  // q
 }
 
 fn day3() -> Result<()> {
   println!("Day 3!");
 
-  let test_str = "mumul";
+  let test_str = "abc";
   let p = char('a');
-  let strparser = string("mu");
 
-  let anotherone = map(strparser, |res| {
-    "opa"
-  });
-
-  let result = anotherone(test_str);
+  let result = p(test_str);
 
   println!("{:#?}", result);
 
@@ -281,8 +211,3 @@ fn main() -> Result<()> {
   day3();
   Ok(())
 }
-
-/*
-string("mul")
-mumul
-*/
